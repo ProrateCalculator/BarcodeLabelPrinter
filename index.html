@@ -240,8 +240,12 @@ th {
     </div>
 
     <button onclick="createOne()">Create Individual Label</button>
-    <div id="individualPreviewNotice" class="status hidden">Scroll Down to see Preview</div>
-    <button onclick="printIndividual()">Print Individual Label</button>
+        <button onclick="printIndividual()">Print Individual Label</button>
+
+    <div id="individualPreviewPanel" class="panel hidden">
+      <h2>Individual Preview</h2>
+      <div id="individualPreviewBody"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -322,6 +326,8 @@ function setLabelSize(sizeValue) {
 }
 
 function applyCsvSettingsAndRender() {
+  const previewPanel = document.getElementById("previewPanel");
+  if (previewPanel) previewPanel.classList.add("hidden");
   activeLogo = document.getElementById("csvLogo").value;
   setLabelSize(document.getElementById("csvSize").value);
 
@@ -381,8 +387,6 @@ function loadRows(rawRows) {
     ? rows.length + " label(s) loaded. Choose logo/size, then click Generate Labels."
     : "No valid rows found.";
 
-  renderPreview();
-
   if (rows.length) {
     applyCsvSettingsAndRender();
   }
@@ -403,18 +407,49 @@ function createOne() {
   activeLogo = document.getElementById("singleLogo").value;
   setLabelSize(document.getElementById("singleSize").value);
 
-  document.getElementById("status").textContent = "1 individual label created.";
-  renderPreview();
-  render();
-  document.getElementById("individualPreviewNotice").classList.remove("hidden");
+  renderIndividualPreview(firstName, lastName, barcode);
+  document.getElementById("labels").innerHTML = "";
 
   return true;
 }
 
 function printIndividual() {
   if (createOne()) {
+    render();
     window.print();
+    document.getElementById("labels").innerHTML = "";
   }
+}
+
+function renderIndividualPreview(firstName, lastName, barcode) {
+  const individualPreviewPanel = document.getElementById("individualPreviewPanel");
+  const individualPreviewBody = document.getElementById("individualPreviewBody");
+
+  const fullName = `${firstName} ${lastName}`.trim();
+  const logoHtml = activeLogo === "none" ? "" : `<img class="logo" src="${logos[activeLogo]}" alt="">`;
+
+  individualPreviewBody.innerHTML = `
+    <div class="label">
+      <div class="name">${escapeHTML(fullName)}</div>
+      ${logoHtml}
+      <svg id="individualPreviewBarcode"></svg>
+      <div class="barcode-text">${escapeHTML(barcode)}</div>
+    </div>
+  `;
+
+  try {
+    JsBarcode("#individualPreviewBarcode", barcode, {
+      format: "CODE128",
+      height: activeBarcodeHeight,
+      width: 1.2,
+      displayValue: false,
+      margin: 0
+    });
+  } catch (error) {
+    document.getElementById("individualPreviewBarcode").outerHTML = "<div>Invalid barcode</div>";
+  }
+
+  individualPreviewPanel.classList.remove("hidden");
 }
 
 function renderPreview() {
@@ -488,8 +523,10 @@ function clearLabels() {
   document.getElementById("previewBody").innerHTML = "";
   document.getElementById("previewPanel").classList.add("hidden");
   document.getElementById("status").textContent = "";
-  const individualPreviewNotice = document.getElementById("individualPreviewNotice");
-  if (individualPreviewNotice) individualPreviewNotice.classList.add("hidden");
+  const individualPreviewPanel = document.getElementById("individualPreviewPanel");
+  const individualPreviewBody = document.getElementById("individualPreviewBody");
+  if (individualPreviewBody) individualPreviewBody.innerHTML = "";
+  if (individualPreviewPanel) individualPreviewPanel.classList.add("hidden");
 }
 
 function parseCSV(text) {
